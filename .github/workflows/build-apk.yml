@@ -8,6 +8,9 @@ on:
       - "jarvis-ai-assistant.zip"
       - ".github/workflows/build-apk.yml"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,23 +32,38 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: "true"
+          log-accepted-android-sdk-licenses: "false"
 
-      - name: Extract project ZIP
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Extract JARVIS project
         run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip
+          test -f jarvis-ai-assistant.zip || {
+            echo "ERROR: jarvis-ai-assistant.zip not found in repository root"
+            exit 1
+          }
+
           mkdir extracted
           unzip -q jarvis-ai-assistant.zip -d extracted
-          PACKAGE_FILE=$(find extracted -name package.json -not -path "*/node_modules/*" -print -quit)
+
+          PACKAGE_FILE=$(find extracted \
+            -name package.json \
+            -not -path "*/node_modules/*" \
+            -print -quit)
+
           if [ -z "$PACKAGE_FILE" ]; then
             echo "ERROR: package.json not found inside ZIP"
             exit 1
           fi
+
           PROJECT_DIR="$(dirname "$PACKAGE_FILE")"
           mkdir app
           cp -a "$PROJECT_DIR/." app/
 
-      - name: Install web dependencies
+      - name: Install project dependencies
         working-directory: app
         run: npm install
 
@@ -53,25 +71,27 @@ jobs:
         working-directory: app
         run: npm run build
 
-      - name: Add Capacitor
+      - name: Configure Capacitor
         working-directory: app
         run: |
           npm install @capacitor/core @capacitor/android
           npm install --save-dev @capacitor/cli
+
           npx cap init JARVIS com.primebazaar.jarvis --web-dir dist
           npx cap add android
           npx cap sync android
 
-      - name: Build debug APK
+      - name: Build Android APK
         working-directory: app/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: JARVIS-debug-APK
           path: app/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 7
           
