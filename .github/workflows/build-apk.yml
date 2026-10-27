@@ -31,8 +31,9 @@ jobs:
           java-version: "21"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
+          packages: "platform-tools"
           accept-android-sdk-licenses: "true"
           log-accepted-android-sdk-licenses: "false"
 
@@ -76,7 +77,6 @@ jobs:
         run: |
           npm install @capacitor/core @capacitor/android
           npm install --save-dev @capacitor/cli
-
           npx cap init JARVIS com.primebazaar.jarvis --web-dir dist
           npx cap add android
           npx cap sync android
@@ -87,7 +87,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: JARVIS-debug-APK
